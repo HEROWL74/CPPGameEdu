@@ -1,15 +1,34 @@
 #include "DxLib.h"
+#include <vector>
+#include <memory>
 
 // 定数定義
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
 const int PLAYER_SIZE = 20;
 const int ENEMY_SIZE = 20;
-const int ENEMY_COUNT = 5;
 
+// 敵キャラクターの構造体
 struct Enemy {
-    int x, y;
-    int speed;
+    int x, y;   // 座標
+    int speed;  // 移動速度
+
+    // 敵の初期化
+    Enemy(int startX, int startY, int moveSpeed) : x(startX), y(startY), speed(moveSpeed) {}
+
+    // 敵の移動
+    void move() {
+        y += speed; // 下方向に移動
+        if (y > WINDOW_HEIGHT) { // 画面外に出たら再配置
+            y = -ENEMY_SIZE;
+            x = rand() % (WINDOW_WIDTH - ENEMY_SIZE);
+        }
+    }
+
+    // 敵の描画
+    void draw() const {
+        DrawBox(x, y, x + ENEMY_SIZE, y + ENEMY_SIZE, GetColor(255, 0, 0), TRUE);
+    }
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
@@ -31,10 +50,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     int playerX = WINDOW_WIDTH / 2;
     int playerY = WINDOW_HEIGHT - PLAYER_SIZE * 2;
 
-    // 敵キャラクターの初期設定（配列を使用）
-    Enemy enemies[ENEMY_COUNT];
-    for (int i = 0; i < ENEMY_COUNT; i++) {
-        enemies[i] = { rand() % (WINDOW_WIDTH - ENEMY_SIZE), rand() % 200 - 200, 2 + rand() % 3 };
+    // 敵キャラクターの動的リスト（ポインタ管理）
+    std::vector<std::unique_ptr<Enemy>> enemies;
+
+    // 敵キャラクターを5体生成
+    for (int i = 0; i < 5; i++) {
+        enemies.push_back(std::make_unique<Enemy>(
+            rand() % (WINDOW_WIDTH - ENEMY_SIZE), rand() % 200 - 200, 2 + rand() % 3));
     }
 
     // ゲームループ
@@ -56,19 +78,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (playerY < 0) playerY = 0;
         if (playerY > WINDOW_HEIGHT - PLAYER_SIZE) playerY = WINDOW_HEIGHT - PLAYER_SIZE;
 
-        // 敵の移動とリセット
-        for (int i = 0; i < ENEMY_COUNT; i++) {
-            enemies[i].y += enemies[i].speed;
-            if (enemies[i].y > WINDOW_HEIGHT) {
-                enemies[i].y = -ENEMY_SIZE;
-                enemies[i].x = rand() % (WINDOW_WIDTH - ENEMY_SIZE);
-            }
-        }
+        // 敵の移動と当たり判定
+        for (auto& enemy : enemies) {
+            enemy->move(); // 敵の移動
+            enemy->draw(); // 敵の描画
 
-        // 当たり判定
-        for (int i = 0; i < ENEMY_COUNT; i++) {
-            if (playerX < enemies[i].x + ENEMY_SIZE && playerX + PLAYER_SIZE > enemies[i].x &&
-                playerY < enemies[i].y + ENEMY_SIZE && playerY + PLAYER_SIZE > enemies[i].y) {
+            // 当たり判定
+            if (playerX < enemy->x + ENEMY_SIZE && playerX + PLAYER_SIZE > enemy->x &&
+                playerY < enemy->y + ENEMY_SIZE && playerY + PLAYER_SIZE > enemy->y) {
                 DrawString(WINDOW_WIDTH / 2 - 50, WINDOW_HEIGHT / 2, "Game Over!", GetColor(255, 0, 0));
                 ScreenFlip();
                 WaitKey();
@@ -79,11 +96,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // プレイヤーの描画
         DrawBox(playerX, playerY, playerX + PLAYER_SIZE, playerY + PLAYER_SIZE, GetColor(0, 255, 0), TRUE);
-
-        // 敵キャラクターの描画
-        for (int i = 0; i < ENEMY_COUNT; i++) {
-            DrawBox(enemies[i].x, enemies[i].y, enemies[i].x + ENEMY_SIZE, enemies[i].y + ENEMY_SIZE, GetColor(255, 0, 0), TRUE);
-        }
 
         // ゲームの説明文
         DrawFormatString(0, 0, GetColor(255, 255, 255), "ESCキーで終了");
